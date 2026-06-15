@@ -2,6 +2,7 @@ using System.Net;
 using ContentService.Application.Common.Exceptions;
 using ContentService.Infrastructure.ExternalServices;
 using Microsoft.Extensions.Logging.Abstractions;
+using Polly.CircuitBreaker;
 using Xunit;
 
 namespace ContentService.Tests;
@@ -34,6 +35,15 @@ public class UserValidationClientTests
     public async Task UserExistsAsync_AgHatasi_UpstreamServiceExceptionFirlatir()
     {
         var client = CreateClient(new StubHandler(_ => throw new HttpRequestException("bağlantı reddedildi")));
+
+        await Assert.ThrowsAsync<UpstreamServiceException>(() => client.UserExistsAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task UserExistsAsync_DevreKesiciAcik_UpstreamServiceExceptionFirlatir()
+    {
+        // Circuit breaker açıkken handler BrokenCircuitException fırlatır; bu da 502'ye çevrilmeli.
+        var client = CreateClient(new StubHandler(_ => throw new BrokenCircuitException("circuit open")));
 
         await Assert.ThrowsAsync<UpstreamServiceException>(() => client.UserExistsAsync(Guid.NewGuid()));
     }

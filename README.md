@@ -41,6 +41,22 @@ User Service'e `GET /users/{id}` çağrısı yapar:
 - Kullanıcı **yoksa** içerik oluşturulmaz (`400`).
 - User Service'e **erişilemezse** retry'lar tükendikten sonra `502` döner.
 
+### Dayanıklılık (resilience) — retry + circuit breaker
+
+`Microsoft.Extensions.Http.Resilience` (Polly v8) standart handler'ı, demo'da
+gözlemlenebilir eşiklerle yapılandırıldı:
+
+| Strateji | Ayar | Davranış |
+|---|---|---|
+| Retry | 2 tekrar, 500 ms backoff | Geçici hatada (5xx/408/429/bağlantı) tekrar dener |
+| Circuit breaker | min 4 çağrı, %50 hata, 15 sn açık | Sürekli hatada devreyi açar; açıkken çağrı yapmadan hızlı reddeder |
+| Timeout | deneme 5 sn / toplam 20 sn | Tek deneme ve tüm operasyon sınırı (HttpClient.Timeout kullanılmaz) |
+
+**Gözlemlenebilir demo:** User Service durdurulup `POST /contents` çağrıldığında ilk birkaç
+istek retry yapıp `502` döner; eşik aşılınca **circuit breaker açılır** ve sonraki istekler
+**anında** `502` döner (çağrı bile yapılmaz). 15 sn sonra devre yarı-açık olur ve yeniden dener.
+Devre açıkken oluşan `BrokenCircuitException` da `502`'ye çevrilir.
+
 ## Proje yapısı
 
 ```

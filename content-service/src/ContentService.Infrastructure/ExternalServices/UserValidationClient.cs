@@ -2,6 +2,7 @@ using System.Net;
 using ContentService.Application.Common.Exceptions;
 using ContentService.Application.Interfaces;
 using Microsoft.Extensions.Logging;
+using Polly.CircuitBreaker;
 
 namespace ContentService.Infrastructure.ExternalServices;
 
@@ -35,6 +36,12 @@ public class UserValidationClient : IUserValidationClient
 
             response.EnsureSuccessStatusCode();
             return true;
+        }
+        catch (BrokenCircuitException ex)
+        {
+            // Circuit breaker açık: User Service'e hiç çağrı yapılmadan hızlı reddedildi.
+            _logger.LogWarning(ex, "User Service devre kesicisi açık; çağrı yapılmadı (userId: {UserId})", userId);
+            throw new UpstreamServiceException("Kullanıcı doğrulama servisi geçici olarak devre dışı (circuit breaker açık).", ex);
         }
         catch (HttpRequestException ex)
         {
