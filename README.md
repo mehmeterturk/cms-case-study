@@ -202,8 +202,9 @@ değiştirmek yeterlidir — DI yalnızca seçilen sağlayıcıyı örnekler.
 
 ### İçerik modeli ve yayın yaşam döngüsü
 
-Bir içerik; `title`, `body`, otomatik üretilen tekil `slug`, sahip `userId`, `status`
-ve `publishedAt` alanlarından oluşur.
+Bir içerik; `title`, `body`, otomatik üretilen tekil `slug`, sahip `userId`, `language`,
+çeviri grubunu bağlayan `translationGroupId`, `status` ve `publishedAt` alanlarından oluşur.
+Ayrıca isteğe bağlı ekli medya dosyaları (`media`) içerir.
 
 - **Slug**: Oluştururken başlıktan üretilir (Türkçe-duyarlı: "Merhaba Dünya" → `merhaba-dunya`),
   çakışırsa sonuna sayı eklenir (`merhaba-dunya-2`). İstekte `slug` verilirse o kullanılır.
@@ -220,15 +221,16 @@ curl -s -X POST http://localhost:8081/users \
   -d '{"fullName":"Ada Lovelace","email":"ada@example.com"}'
 # -> { "id": "....", ... }
 
-# 2) Bu kullanıcı ile içerik oluştur (201 beklenir)
+# 2) Bu kullanıcı ile içerik oluştur (multipart/form-data; 201 beklenir)
+#    Opsiyonel olarak -F "files=@/yol/dosya.png" ile medya da eklenebilir.
 curl -s -X POST http://localhost:8080/contents \
-  -H "Content-Type: application/json" \
-  -d '{"title":"İlk içerik","body":"Merhaba dünya","userId":"<yukarıdaki-id>"}'
+  -F "title=İlk içerik" -F "body=Merhaba dünya" \
+  -F "userId=<yukarıdaki-id>" -F "language=Tr"
 
 # 3) Var olmayan kullanıcı ile içerik oluştur (400 beklenir)
 curl -s -X POST http://localhost:8080/contents \
-  -H "Content-Type: application/json" \
-  -d '{"title":"x","body":"y","userId":"00000000-0000-0000-0000-000000000000"}'
+  -F "title=x" -F "body=y" \
+  -F "userId=00000000-0000-0000-0000-000000000000" -F "language=Tr"
 ```
 
 ## Testler
@@ -241,9 +243,13 @@ dotnet test user-service/UserService.slnx
 dotnet test content-service/ContentService.slnx
 ```
 
-Testler iş mantığını (servis katmanı) repository ve HTTP client mock'lanarak doğrular;
-kritik akışlar: CRUD happy-path, NotFound, doğrulama hataları, kullanıcı doğrulama
-(var / yok) ve User Service erişilemediğinde 502 davranışı.
+Testler iş mantığını (servis katmanı) repository, HTTP client ve storage mock'lanarak
+doğrular. Kapsanan kritik akışlar:
+- CRUD happy-path, NotFound, doğrulama hataları (e-posta formatı/tekilliği dahil)
+- Kullanıcı doğrulama (var / yok), User Service erişilemediğinde **502** ve **circuit breaker** → 502
+- Toplu kullanıcı ekleme (atomiklik, batch-içi/DB tekrar e-posta)
+- İçerik durum geçişleri (`Publish`/`Archive`, geçersiz geçiş 409, `PublishedAt` bir kez)
+- Slug üretimi/tekilliği, çoklu-dil grup kuralları, medya replace, storage adapter
 
 ## Yerel geliştirme (Docker'sız)
 
