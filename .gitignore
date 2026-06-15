@@ -1,0 +1,25 @@
+# Build sonuçları
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# IDE / editör
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET araçları
+*.swp
+*.DS_Store
+
+# Test/coverage
+**/TestResults/
+*.trx
+*.coverage
+coverage*.json
+coverage*.xml
