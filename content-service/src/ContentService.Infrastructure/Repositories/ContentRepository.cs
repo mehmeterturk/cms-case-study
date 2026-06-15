@@ -1,5 +1,6 @@
 using ContentService.Application.Interfaces;
 using ContentService.Domain.Entities;
+using ContentService.Domain.Enums;
 using ContentService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,11 +15,26 @@ public class ContentRepository : IContentRepository
         _context = context;
     }
 
-    public async Task<IReadOnlyList<Content>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await _context.Contents.AsNoTracking().OrderByDescending(c => c.CreatedAt).ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<Content>> GetAllAsync(ContentStatus? status = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Contents.AsNoTracking();
+
+        if (status is not null)
+        {
+            query = query.Where(c => c.Status == status);
+        }
+
+        return await query.OrderByDescending(c => c.CreatedAt).ToListAsync(cancellationToken);
+    }
 
     public async Task<Content?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await _context.Contents.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+
+    public async Task<Content?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default) =>
+        await _context.Contents.AsNoTracking().FirstOrDefaultAsync(c => c.Slug == slug, cancellationToken);
+
+    public async Task<bool> ExistsBySlugAsync(string slug, CancellationToken cancellationToken = default) =>
+        await _context.Contents.AnyAsync(c => c.Slug == slug, cancellationToken);
 
     public async Task AddAsync(Content content, CancellationToken cancellationToken = default)
     {

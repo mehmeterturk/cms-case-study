@@ -4,6 +4,8 @@ using ContentService.Application.Interfaces;
 using ContentService.Application.Services;
 using ContentService.Application.Validators;
 using ContentService.Domain.Entities;
+using ContentService.Domain.Enums;
+using ContentService.Domain.Exceptions;
 using FluentValidation;
 using Moq;
 using Xunit;
@@ -37,7 +39,25 @@ public class ContentAppServiceTests
 
         Assert.Equal("Başlık", result.Title);
         Assert.Equal(userId, result.UserId);
+        Assert.Equal("baslik", result.Slug);                 // Türkçe-duyarlı, başlıktan üretilir
+        Assert.Equal(ContentStatus.Draft.ToString(), result.Status); // yeni içerik taslak başlar
+        Assert.Null(result.PublishedAt);
         _repository.Verify(r => r.AddAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_SlugCakisirsa_SonekEkleyerekTekillestirir()
+    {
+        var userId = Guid.NewGuid();
+        var request = new CreateContentRequest("Merhaba Dünya", "Gövde", userId);
+        _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        // "merhaba-dunya" zaten var, "merhaba-dunya-2" boş.
+        _repository.Setup(r => r.ExistsBySlugAsync("merhaba-dunya", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _repository.Setup(r => r.ExistsBySlugAsync("merhaba-dunya-2", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var result = await _sut.CreateAsync(request);
+
+        Assert.Equal("merhaba-dunya-2", result.Slug);
     }
 
     [Fact]
@@ -114,7 +134,7 @@ public class ContentAppServiceTests
             new() { Title = "A", Body = "x", UserId = Guid.NewGuid() },
             new() { Title = "B", Body = "y", UserId = Guid.NewGuid() }
         };
-        _repository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(items);
+        _repository.Setup(r => r.GetAllAsync(It.IsAny<ContentStatus?>(), It.IsAny<CancellationToken>())).ReturnsAsync(items);
 
         var result = await _sut.GetAllAsync();
 
@@ -166,5 +186,75 @@ public class ContentAppServiceTests
         await _sut.DeleteAsync(content.Id);
 
         _repository.Verify(r => r.DeleteAsync(content, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PublishAsync_TaslakIcerik_YayinaAlir()
+    {
+        var content = new Content { Title = "T", Body = "B", UserId = Guid.NewGuid(), Status = ContentStatus.Draft };
+        _repository.Setup(r => r.GetByIdAsync(content.Id, It.IsAny<CancellationToken>())).ReturnsAsync(content);
+
+        var result = await _sut.PublishAsync(content.Id);
+
+        Assert.Equal(ContentStatus.Published.ToString(), result.Status);
+        Assert.NotNull(result.PublishedAt);
+        _repository.Verify(r => r.UpdateAsync(content, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PublishAsync_ZatenYayinda_DomainExceptionFirlatir()
+    {
+        var content = new Content { Title = "T", Body = "B", UserId = Guid.NewGuid(), Status = ContentStatus.Published };
+        _repository.Setup(r => r.GetByIdAsync(content.Id, It.IsAny<CancellationToken>())).ReturnsAsync(content);
+
+        await Assert.ThrowsAsync<DomainException>(() => _sut.PublishAsync(content.Id));
+        _repository.Verify(r => r.UpdateAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task PublishAsync_IcerikYok_NotFoundExceptionFirlatir()
+    {
+        _repository.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((Content?)null);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.PublishAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_YayindakiIcerik_Arsivler()
+    {
+        var content = new Content { Title = "T", Body = "B", UserId = Guid.NewGuid(), Status = ContentStatus.Published };
+        _repository.Setup(r => r.GetByIdAsync(content.Id, It.IsAny<CancellationToken>())).ReturnsAsync(content);
+
+        var result = await _sut.ArchiveAsync(content.Id);
+
+        Assert.Equal(ContentStatus.Archived.ToString(), result.Status);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_ZatenArsivli_DomainExceptionFirlatir()
+    {
+        var content = new Content { Title = "T", Body = "B", UserId = Guid.NewGuid(), Status = ContentStatus.Archived };
+        _repository.Setup(r => r.GetByIdAsync(content.Id, It.IsAny<CancellationToken>())).ReturnsAsync(content);
+
+        await Assert.ThrowsAsync<DomainException>(() => _sut.ArchiveAsync(content.Id));
+    }
+
+    [Fact]
+    public async Task GetBySlugAsync_Yok_NotFoundExceptionFirlatir()
+    {
+        _repository.Setup(r => r.GetBySlugAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((Content?)null);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.GetBySlugAsync("yok"));
+    }
+
+    [Fact]
+    public async Task GetAllAsync_StatusFiltresi_RepositoryeIletilir()
+    {
+        _repository.Setup(r => r.GetAllAsync(ContentStatus.Published, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Content>());
+
+        await _sut.GetAllAsync(ContentStatus.Published);
+
+        _repository.Verify(r => r.GetAllAsync(ContentStatus.Published, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

@@ -2,14 +2,17 @@ using ContentService.Application.Common.Exceptions;
 using ContentService.Application.DTOs;
 using ContentService.Application.Interfaces;
 using ContentService.Application.Mapping;
+using ContentService.Domain.Common;
 using ContentService.Domain.Entities;
+using ContentService.Domain.Enums;
 using FluentValidation;
 
 namespace ContentService.Application.Services;
 
 /// <summary>
-/// İçerik iş mantığı. İçerik oluştururken, sahip kullanıcının User Service'te
-/// var olduğunu servisler arası çağrı ile doğrular (veri tutarlılığı).
+/// İçerik iş mantığı. İçerik oluştururken sahip kullanıcının User Service'te var
+/// olduğunu doğrular (veri tutarlılığı), tekil bir slug üretir ve yayın yaşam
+/// döngüsünü (taslak → yayın → arşiv) yönetir.
 /// </summary>
 public class ContentAppService : IContentService
 {
@@ -30,9 +33,9 @@ public class ContentAppService : IContentService
         _updateValidator = updateValidator;
     }
 
-    public async Task<IReadOnlyList<ContentDto>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ContentDto>> GetAllAsync(ContentStatus? status = null, CancellationToken cancellationToken = default)
     {
-        var contents = await _repository.GetAllAsync(cancellationToken);
+        var contents = await _repository.GetAllAsync(status, cancellationToken);
         return contents.Select(c => c.ToDto()).ToList();
     }
 
@@ -40,6 +43,13 @@ public class ContentAppService : IContentService
     {
         var content = await _repository.GetByIdAsync(id, cancellationToken)
                       ?? throw new NotFoundException("İçerik", id);
+        return content.ToDto();
+    }
+
+    public async Task<ContentDto> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    {
+        var content = await _repository.GetBySlugAsync(slug, cancellationToken)
+                      ?? throw new NotFoundException($"'{slug}' slug'ına sahip içerik bulunamadı.");
         return content.ToDto();
     }
 
@@ -55,11 +65,16 @@ public class ContentAppService : IContentService
                 $"Belirtilen kullanıcı ({request.UserId}) bulunamadı; içerik oluşturulamaz.");
         }
 
+        var baseSlug = SlugGenerator.Generate(string.IsNullOrWhiteSpace(request.Slug) ? request.Title : request.Slug);
+        var slug = await EnsureUniqueSlugAsync(baseSlug, cancellationToken);
+
         var content = new Content
         {
             Title = request.Title,
             Body = request.Body,
-            UserId = request.UserId
+            Slug = slug,
+            UserId = request.UserId,
+            Status = ContentStatus.Draft
         };
 
         await _repository.AddAsync(content, cancellationToken);
@@ -73,9 +88,29 @@ public class ContentAppService : IContentService
         var content = await _repository.GetByIdAsync(id, cancellationToken)
                       ?? throw new NotFoundException("İçerik", id);
 
-        content.Title = request.Title;
-        content.Body = request.Body;
-        content.UpdatedAt = DateTime.UtcNow;
+        content.UpdateDetails(request.Title, request.Body);
+
+        await _repository.UpdateAsync(content, cancellationToken);
+        return content.ToDto();
+    }
+
+    public async Task<ContentDto> PublishAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var content = await _repository.GetByIdAsync(id, cancellationToken)
+                      ?? throw new NotFoundException("İçerik", id);
+
+        content.Publish();
+
+        await _repository.UpdateAsync(content, cancellationToken);
+        return content.ToDto();
+    }
+
+    public async Task<ContentDto> ArchiveAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var content = await _repository.GetByIdAsync(id, cancellationToken)
+                      ?? throw new NotFoundException("İçerik", id);
+
+        content.Archive();
 
         await _repository.UpdateAsync(content, cancellationToken);
         return content.ToDto();
@@ -87,5 +122,27 @@ public class ContentAppService : IContentService
                       ?? throw new NotFoundException("İçerik", id);
 
         await _repository.DeleteAsync(content, cancellationToken);
+    }
+
+    /// <summary>
+    /// Verilen taban slug çakışırsa sonuna artan bir sayı ekleyerek tekil hale getirir
+    /// (ör. "merhaba-dunya", "merhaba-dunya-2", ...).
+    /// </summary>
+    private async Task<string> EnsureUniqueSlugAsync(string baseSlug, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(baseSlug))
+        {
+            baseSlug = "icerik";
+        }
+
+        var candidate = baseSlug;
+        var suffix = 2;
+        while (await _repository.ExistsBySlugAsync(candidate, cancellationToken))
+        {
+            candidate = $"{baseSlug}-{suffix}";
+            suffix++;
+        }
+
+        return candidate;
     }
 }

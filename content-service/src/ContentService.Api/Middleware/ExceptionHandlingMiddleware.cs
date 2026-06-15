@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ContentService.Application.Common.Exceptions;
+using ContentService.Domain.Exceptions;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 
@@ -46,6 +47,10 @@ public class ExceptionHandlingMiddleware
                 StatusCodes.Status404NotFound,
                 "Kayıt bulunamadı",
                 notFound.Message),
+            DomainException domain => (
+                StatusCodes.Status409Conflict,
+                "İşlem çakışması",
+                domain.Message),
             UpstreamServiceException upstream => (
                 StatusCodes.Status502BadGateway,
                 "Bağımlı servis hatası",

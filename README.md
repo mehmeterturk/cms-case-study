@@ -94,11 +94,25 @@ Veritabanı şeması, her servisin açılışında otomatik migration ile oluşt
 
 | Metot | Yol | Açıklama |
 |-------|-----|----------|
-| GET | `/contents` | Tüm içerikleri listele |
-| POST | `/contents` | Yeni içerik oluştur (kullanıcıyı doğrular) |
+| GET | `/contents` | İçerikleri listele (opsiyonel `?status=Draft\|Published\|Archived`) |
+| POST | `/contents` | Yeni içerik oluştur (kullanıcıyı doğrular, taslak olarak başlar) |
 | GET | `/contents/{id}` | Belirli içeriği getir |
-| PUT | `/contents/{id}` | İçeriği güncelle |
+| GET | `/contents/by-slug/{slug}` | Slug'a göre içerik getir |
+| PUT | `/contents/{id}` | İçeriğin başlık/gövdesini güncelle |
+| POST | `/contents/{id}/publish` | İçeriği yayına al (zaten yayındaysa 409) |
+| POST | `/contents/{id}/archive` | İçeriği arşivle (zaten arşivliyse 409) |
 | DELETE | `/contents/{id}` | İçeriği sil |
+
+### İçerik modeli ve yayın yaşam döngüsü
+
+Bir içerik; `title`, `body`, otomatik üretilen tekil `slug`, sahip `userId`, `status`
+ve `publishedAt` alanlarından oluşur.
+
+- **Slug**: Oluştururken başlıktan üretilir (Türkçe-duyarlı: "Merhaba Dünya" → `merhaba-dunya`),
+  çakışırsa sonuna sayı eklenir (`merhaba-dunya-2`). İstekte `slug` verilirse o kullanılır.
+  Güncellemede slug değişmez (kalıcı URL).
+- **Durum geçişleri**: `Draft` → (publish) → `Published` → (archive) → `Archived`.
+  Geçersiz geçişler 409 döner.
 
 ### Örnek akış
 
