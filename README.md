@@ -86,10 +86,22 @@ Veritabanı şeması, her servisin açılışında otomatik migration ile oluşt
 | Metot | Yol | Açıklama |
 |-------|-----|----------|
 | GET | `/users` | Tüm kullanıcıları listele |
-| POST | `/users` | Yeni kullanıcı oluştur |
+| POST | `/users` | Kullanıcı oluştur — **tek nesne** veya **dizi** (toplu, atomik) kabul eder |
 | GET | `/users/{id}` | Belirli kullanıcıyı getir |
 | PUT | `/users/{id}` | Kullanıcıyı güncelle |
 | DELETE | `/users/{id}` | Kullanıcıyı sil |
+
+> **Toplu kullanıcı ekleme:** `POST /users` aynı endpoint üzerinden hem tekil nesne
+> hem de dizi kabul eder. Dizi gönderildiğinde işlem **atomiktir** — herhangi bir kayıt
+> geçersizse (format hatası, batch içi veya veritabanındaki tekrar e-posta) **hiçbiri**
+> eklenmez ve 400 döner.
+>
+> ```json
+> [
+>   { "fullName": "Ada Lovelace", "email": "ada@example.com" },
+>   { "fullName": "Grace Hopper",      "email": "grace@example.com" }
+> ]
+> ```
 
 **Content Service** (`http://localhost:8080`)
 

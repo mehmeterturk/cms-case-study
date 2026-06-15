@@ -59,6 +59,55 @@ public class UserAppService : IUserService
         return user.ToDto();
     }
 
+    public async Task<IReadOnlyList<UserDto>> CreateManyAsync(IReadOnlyList<CreateUserRequest> requests, CancellationToken cancellationToken = default)
+    {
+        if (requests.Count == 0)
+        {
+            throw new ValidationException("En az bir kullanıcı göndermelisiniz.");
+        }
+
+        var failures = new List<string>();
+
+        // 1) Her kaydı tek tek doğrula.
+        for (var i = 0; i < requests.Count; i++)
+        {
+            var result = await _createValidator.ValidateAsync(requests[i], cancellationToken);
+            if (!result.IsValid)
+            {
+                failures.AddRange(result.Errors.Select(e => $"[{i}] {e.ErrorMessage}"));
+            }
+        }
+
+        // 2) Batch içi tekrar eden e-postalar.
+        var duplicatesInBatch = requests
+            .GroupBy(r => r.Email)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key);
+        foreach (var email in duplicatesInBatch)
+        {
+            failures.Add($"'{email}' e-postası istekte birden fazla geçiyor.");
+        }
+
+        // 3) Veritabanında zaten var olan e-postalar.
+        var existing = await _repository.GetExistingEmailsAsync(requests.Select(r => r.Email), cancellationToken);
+        foreach (var email in existing)
+        {
+            failures.Add($"'{email}' e-postası zaten kullanımda.");
+        }
+
+        if (failures.Count > 0)
+        {
+            throw new ValidationException(string.Join(" ", failures));
+        }
+
+        var users = requests
+            .Select(r => new User { FullName = r.FullName, Email = r.Email })
+            .ToList();
+
+        await _repository.AddRangeAsync(users, cancellationToken); // atomik
+        return users.Select(u => u.ToDto()).ToList();
+    }
+
     public async Task<UserDto> UpdateAsync(Guid id, UpdateUserRequest request, CancellationToken cancellationToken = default)
     {
         await _updateValidator.ValidateAndThrowAsync(request, cancellationToken);

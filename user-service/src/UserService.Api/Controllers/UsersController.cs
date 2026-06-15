@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using UserService.Application.DTOs;
 using UserService.Application.Interfaces;
@@ -29,15 +30,53 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserDto>> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(await _service.GetByIdAsync(id, cancellationToken));
 
-    /// <summary>Yeni bir kullanıcı oluşturur.</summary>
+    /// <summary>
+    /// Kullanıcı oluşturur. Gövde tek bir nesne ise tek kullanıcı, bir dizi ise
+    /// birden çok kullanıcı (atomik) oluşturulur.
+    /// Tekil → tek kullanıcı (201), dizi → kullanıcı listesi (201) döner.
+    /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(UserDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(IReadOnlyList<UserDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create([FromBody] JsonElement body, CancellationToken cancellationToken)
     {
-        var created = await _service.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        if (body.ValueKind == JsonValueKind.Array)
+        {
+            List<CreateUserRequest>? requests;
+            try
+            {
+                requests = body.Deserialize<List<CreateUserRequest>>(JsonOptions);
+            }
+            catch (JsonException)
+            {
+                return BadRequest("Geçersiz kullanıcı listesi gövdesi.");
+            }
+
+            var createdMany = await _service.CreateManyAsync(requests ?? [], cancellationToken);
+            return StatusCode(StatusCodes.Status201Created, createdMany);
+        }
+
+        if (body.ValueKind == JsonValueKind.Object)
+        {
+            CreateUserRequest? request;
+            try
+            {
+                request = body.Deserialize<CreateUserRequest>(JsonOptions);
+            }
+            catch (JsonException)
+            {
+                return BadRequest("Geçersiz kullanıcı gövdesi.");
+            }
+
+            var created = await _service.CreateAsync(request!, cancellationToken);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        }
+
+        return BadRequest("Gövde bir kullanıcı nesnesi veya kullanıcı dizisi olmalıdır.");
     }
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>Belirli bir kullanıcıyı günceller.</summary>
     [HttpPut("{id:guid}")]

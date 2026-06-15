@@ -17,6 +17,10 @@ public class UserAppServiceTests
 
     public UserAppServiceTests()
     {
+        // Varsayılan: hiçbir e-posta veritabanında yok (toplu ekleme kontrolü için).
+        _repository.Setup(r => r.GetExistingEmailsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<string>());
+
         _sut = new UserAppService(
             _repository.Object,
             new CreateUserRequestValidator(),
@@ -144,5 +148,68 @@ public class UserAppServiceTests
         await _sut.DeleteAsync(user.Id);
 
         _repository.Verify(r => r.DeleteAsync(user, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateManyAsync_GecerliListe_HepsiniOlusturur()
+    {
+        var requests = new List<CreateUserRequest>
+        {
+            new("Ada Lovelace", "ada@example.com"),
+            new("Grace Hopper", "grace@example.com")
+        };
+
+        var result = await _sut.CreateManyAsync(requests);
+
+        Assert.Equal(2, result.Count);
+        _repository.Verify(r => r.AddRangeAsync(It.Is<IEnumerable<User>>(u => u.Count() == 2), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateManyAsync_BosListe_ValidationExceptionFirlatir()
+    {
+        await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateManyAsync(new List<CreateUserRequest>()));
+        _repository.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<User>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateManyAsync_BatchIciTekrarEdenEposta_ValidationExceptionFirlatir()
+    {
+        var requests = new List<CreateUserRequest>
+        {
+            new("A", "ayni@example.com"),
+            new("B", "ayni@example.com")
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateManyAsync(requests));
+        _repository.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<User>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateManyAsync_VeritabaninaVarOlanEposta_ValidationExceptionFirlatir()
+    {
+        var requests = new List<CreateUserRequest>
+        {
+            new("A", "var@example.com"),
+            new("B", "yeni@example.com")
+        };
+        _repository.Setup(r => r.GetExistingEmailsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { "var@example.com" });
+
+        await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateManyAsync(requests));
+        _repository.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<User>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateManyAsync_GecersizGirdiVarsa_HicbiriniEklemez()
+    {
+        var requests = new List<CreateUserRequest>
+        {
+            new("Geçerli", "gecerli@example.com"),
+            new("", "gecersiz-email")
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateManyAsync(requests));
+        _repository.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<User>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

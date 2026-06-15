@@ -11,6 +11,9 @@ public interface IUserService
 
     Task<UserDto> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>Birden çok kullanıcıyı tek seferde (atomik) oluşturur.</summary>
+    Task<IReadOnlyList<UserDto>> CreateManyAsync(IReadOnlyList<CreateUserRequest> requests, CancellationToken cancellationToken = default);
+
     Task<UserDto> UpdateAsync(Guid id, UpdateUserRequest request, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);

@@ -14,7 +14,12 @@ public interface IUserRepository
 
     Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default);
 
+    /// <summary>Verilen e-postalardan veritabanında halihazırda bulunanları döndürür (toplu ekleme kontrolü).</summary>
+    Task<IReadOnlyList<string>> GetExistingEmailsAsync(IEnumerable<string> emails, CancellationToken cancellationToken = default);
+
     Task AddAsync(User user, CancellationToken cancellationToken = default);
+
+    Task AddRangeAsync(IEnumerable<User> users, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(User user, CancellationToken cancellationToken = default);
 
