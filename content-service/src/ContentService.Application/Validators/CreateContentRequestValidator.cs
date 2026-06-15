@@ -1,12 +1,16 @@
+using ContentService.Application.Common;
 using ContentService.Application.DTOs;
 using FluentValidation;
+using Microsoft.Extensions.Options;
 
 namespace ContentService.Application.Validators;
 
 public class CreateContentRequestValidator : AbstractValidator<CreateContentRequest>
 {
-    public CreateContentRequestValidator()
+    public CreateContentRequestValidator(IOptions<LocalizationOptions> localization)
     {
+        var supported = localization.Value.SupportedLanguages;
+
         RuleFor(x => x.Title)
             .NotEmpty().WithMessage("Başlık zorunludur.")
             .MaximumLength(200);
@@ -19,6 +23,7 @@ public class CreateContentRequestValidator : AbstractValidator<CreateContentRequ
 
         RuleFor(x => x.Language)
             .NotEmpty().WithMessage("Dil (language) zorunludur.")
-            .Matches("^[a-z]{2}$").WithMessage("Dil ISO 639-1 formatında iki küçük harf olmalıdır (ör. tr, en).");
+            .Must(lang => !string.IsNullOrWhiteSpace(lang) && supported.Contains(lang.Trim().ToLowerInvariant()))
+            .WithMessage(_ => $"Desteklenmeyen dil. Desteklenen diller: {string.Join(", ", supported)}.");
     }
 }

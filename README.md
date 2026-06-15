@@ -114,6 +114,7 @@ bir `ContentsController` altında toplanmıştır.
 | GET | `/contents` | İçerikleri **medyalarıyla** listele (opsiyonel `?status=Draft\|Published\|Archived`, `?language=tr`) |
 | GET | `/contents/{id}` | Belirli içeriği **medyalarıyla** getir |
 | GET | `/contents/{id}/translations` | İçeriğin tüm dil versiyonlarını (aynı çeviri grubu) getir |
+| GET | `/contents/languages` | Desteklenen dil kodlarını getir |
 | GET | `/contents/by-slug/{slug}` | Slug'a göre içeriği **medyalarıyla** getir |
 | POST | `/contents` | İçerik oluştur — **`multipart/form-data`**: `title`, `body`, `userId`, `language` (ISO 639-1, ör. `tr`), (ops.) `translationGroupId`, (ops.) `slug`, (ops.) `files` (çoklu, ≤25 MB). Kullanıcı doğrulanır, taslak başlar |
 | PUT | `/contents/{id}` | İçeriği güncelle (**replace**) — **`multipart/form-data`**: `title`, `body`, (ops.) `files`. Gönderilen alanlar kaydı değiştirir; medya seti `files` ile **değiştirilir** (dosya gönderilmezse medya **tamamen kaldırılır**) |
@@ -132,6 +133,9 @@ bir `ContentsController` altında toplanmıştır.
 modellenmiştir (dil, içeriğin bir özelliğidir; bağımsız bir bounded context değildir).
 
 - Her içerik bir `language` (ISO 639-1, ör. `tr`/`en`) değerine sahiptir.
+- **Desteklenen diller yapılandırmadan gelir** (`appsettings` → `Localization:SupportedLanguages`).
+  Listede olmayan bir dil kodu reddedilir (400). Büyük/küçük harf normalize edilir (`TR` → `tr`).
+  Desteklenen diller `GET /contents/languages` ile alınabilir.
 - Aynı makalenin farklı dil versiyonları bir `translationGroupId` ile birbirine bağlanır.
   İlk versiyon yeni bir grup başlatır; çeviriler oluşturulurken bu grup kimliği verilir.
 - **Kural**: Aynı çeviri grubunda bir dil yalnızca bir kez bulunabilir (unique index:

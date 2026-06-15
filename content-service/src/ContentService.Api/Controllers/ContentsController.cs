@@ -1,8 +1,10 @@
+using ContentService.Application.Common;
 using ContentService.Application.DTOs;
 using ContentService.Application.Interfaces;
 using ContentService.Application.Models;
 using ContentService.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace ContentService.Api.Controllers;
 
@@ -12,11 +14,19 @@ namespace ContentService.Api.Controllers;
 public class ContentsController : ControllerBase
 {
     private readonly IContentService _service;
+    private readonly LocalizationOptions _localization;
 
-    public ContentsController(IContentService service)
+    public ContentsController(IContentService service, IOptions<LocalizationOptions> localization)
     {
         _service = service;
+        _localization = localization.Value;
     }
+
+    /// <summary>İçerik oluştururken kullanılabilecek desteklenen dilleri listeler.</summary>
+    [HttpGet("languages")]
+    [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
+    public ActionResult<IReadOnlyList<string>> GetSupportedLanguages()
+        => Ok(_localization.SupportedLanguages);
 
     /// <summary>İçerikleri (ekli medyalarıyla) listeler. Opsiyonel: ?status=Published&amp;language=tr.</summary>
     [HttpGet]

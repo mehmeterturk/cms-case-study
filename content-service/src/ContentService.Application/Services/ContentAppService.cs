@@ -87,7 +87,8 @@ public class ContentAppService : IContentService
                 $"Belirtilen kullanıcı ({request.UserId}) bulunamadı; içerik oluşturulamaz.");
         }
 
-        var translationGroupId = await ResolveTranslationGroupAsync(request, cancellationToken);
+        var language = request.Language.Trim().ToLowerInvariant();
+        var translationGroupId = await ResolveTranslationGroupAsync(request.TranslationGroupId, language, cancellationToken);
 
         var baseSlug = SlugGenerator.Generate(string.IsNullOrWhiteSpace(request.Slug) ? request.Title : request.Slug);
         var slug = await EnsureUniqueSlugAsync(baseSlug, cancellationToken);
@@ -97,7 +98,7 @@ public class ContentAppService : IContentService
             Title = request.Title,
             Body = request.Body,
             Slug = slug,
-            Language = request.Language,
+            Language = language,
             TranslationGroupId = translationGroupId,
             UserId = request.UserId,
             Status = ContentStatus.Draft
@@ -223,9 +224,9 @@ public class ContentAppService : IContentService
     /// Çeviri grubunu çözer: grup verilmezse yeni bir grup başlatır; verilirse grubun
     /// var olduğunu ve o grupta aynı dilin henüz bulunmadığını doğrular.
     /// </summary>
-    private async Task<Guid> ResolveTranslationGroupAsync(CreateContentRequest request, CancellationToken cancellationToken)
+    private async Task<Guid> ResolveTranslationGroupAsync(Guid? translationGroupId, string language, CancellationToken cancellationToken)
     {
-        if (request.TranslationGroupId is not Guid groupId)
+        if (translationGroupId is not Guid groupId)
         {
             return Guid.NewGuid(); // ilk versiyon: yeni grup
         }
@@ -235,9 +236,9 @@ public class ContentAppService : IContentService
             throw new ValidationException($"Belirtilen çeviri grubu ({groupId}) bulunamadı.");
         }
 
-        if (await _repository.ExistsInGroupWithLanguageAsync(groupId, request.Language, cancellationToken))
+        if (await _repository.ExistsInGroupWithLanguageAsync(groupId, language, cancellationToken))
         {
-            throw new ValidationException($"Bu çeviri grubunda '{request.Language}' dili zaten mevcut.");
+            throw new ValidationException($"Bu çeviri grubunda '{language}' dili zaten mevcut.");
         }
 
         return groupId;

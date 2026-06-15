@@ -1,3 +1,4 @@
+using ContentService.Application.Common;
 using ContentService.Application.Common.Exceptions;
 using ContentService.Application.DTOs;
 using ContentService.Application.Interfaces;
@@ -8,6 +9,7 @@ using ContentService.Domain.Entities;
 using ContentService.Domain.Enums;
 using ContentService.Domain.Exceptions;
 using FluentValidation;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -28,12 +30,13 @@ public class ContentAppServiceTests
         _mediaRepository.Setup(r => r.GetByContentIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<MediaAttachment>());
 
+        var localization = Options.Create(new LocalizationOptions { SupportedLanguages = ["tr", "en"] });
         _sut = new ContentAppService(
             _repository.Object,
             _userClient.Object,
             _mediaRepository.Object,
             _storage.Object,
-            new CreateContentRequestValidator(),
+            new CreateContentRequestValidator(localization),
             new UpdateContentRequestValidator());
     }
 
@@ -311,14 +314,27 @@ public class ContentAppServiceTests
     }
 
     [Theory]
-    [InlineData("TR")]      // büyük harf
+    [InlineData("zz")]      // geçerli format ama desteklenmiyor
+    [InlineData("de")]      // desteklenen listede yok
     [InlineData("tur")]     // 3 harf
     [InlineData("")]        // boş
-    public async Task CreateAsync_GecersizDil_ValidationExceptionFirlatir(string language)
+    public async Task CreateAsync_DesteklenmeyenDil_ValidationExceptionFirlatir(string language)
     {
         var request = new CreateContentRequest("Başlık", "Gövde", Guid.NewGuid(), language);
 
         await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateAsync(request, NoFiles));
+    }
+
+    [Fact]
+    public async Task CreateAsync_BuyukHarfliDil_NormalizeEdilirVeKabulEdilir()
+    {
+        var userId = Guid.NewGuid();
+        var request = new CreateContentRequest("Başlık", "Gövde", userId, "TR"); // büyük harf
+        _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var result = await _sut.CreateAsync(request, NoFiles);
+
+        Assert.Equal("tr", result.Language); // küçük harfe normalize edilir
     }
 
     [Fact]
