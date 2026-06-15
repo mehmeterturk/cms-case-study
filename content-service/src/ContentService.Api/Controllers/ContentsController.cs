@@ -119,16 +119,6 @@ public class ContentsController : ControllerBase
         return File(file.Content, file.ContentType, file.FileName);
     }
 
-    /// <summary>İçeriğe ait bir medya dosyasını siler (depodan + veritabanından).</summary>
-    [HttpDelete("{id:guid}/media/{mediaId:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteMedia(Guid id, Guid mediaId, CancellationToken cancellationToken)
-    {
-        await _service.DeleteMediaAsync(id, mediaId, cancellationToken);
-        return NoContent();
-    }
-
     private static IReadOnlyList<FileUpload> ToUploads(List<IFormFile>? files) =>
         (files ?? [])
             .Select(f => new FileUpload(f.OpenReadStream(), f.FileName, f.ContentType, f.Length))

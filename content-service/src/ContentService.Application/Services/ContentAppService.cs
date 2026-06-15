@@ -108,7 +108,11 @@ public class ContentAppService : IContentService
         content.UpdateDetails(request.Title, request.Body);
         await _repository.UpdateAsync(content, cancellationToken);
 
+        // Replace mantığı: mevcut medyalar (depo + kayıt) temizlenir, gönderilen
+        // dosyalar yeni medya seti olur. Dosya gönderilmezse medya tamamen kaldırılır.
+        await ClearMediaAsync(content, cancellationToken);
         await AttachFilesAsync(id, files, cancellationToken);
+
         content.MediaAttachments = (await _mediaRepository.GetByContentIdAsync(id, cancellationToken)).ToList();
         return content.ToDto();
     }
@@ -141,8 +145,7 @@ public class ContentAppService : IContentService
                       ?? throw new NotFoundException("İçerik", id);
 
         // İçeriğe ait medya dosyalarını depodan temizle (DB kayıtları cascade ile silinir).
-        var media = await _mediaRepository.GetByContentIdAsync(id, cancellationToken);
-        foreach (var item in media)
+        foreach (var item in content.MediaAttachments)
         {
             await _storage.DeleteAsync(item.StorageKey, cancellationToken);
         }
@@ -157,11 +160,17 @@ public class ContentAppService : IContentService
         return new FileDownload(stream, media.FileName, media.ContentType);
     }
 
-    public async Task DeleteMediaAsync(Guid contentId, Guid mediaId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// İçeriğe ait tüm medyaları depodan ve veritabanından temizler. Zaten yüklü
+    /// (tracked) navigation üzerinden çalışır; böylece EF tracking çakışması olmaz.
+    /// </summary>
+    private async Task ClearMediaAsync(Content content, CancellationToken cancellationToken)
     {
-        var media = await GetOwnedMediaAsync(contentId, mediaId, cancellationToken);
-        await _storage.DeleteAsync(media.StorageKey, cancellationToken);
-        await _mediaRepository.DeleteAsync(media, cancellationToken);
+        foreach (var media in content.MediaAttachments.ToList())
+        {
+            await _storage.DeleteAsync(media.StorageKey, cancellationToken);
+            await _mediaRepository.DeleteAsync(media, cancellationToken);
+        }
     }
 
     private async Task AttachFilesAsync(Guid contentId, IReadOnlyList<FileUpload> files, CancellationToken cancellationToken)

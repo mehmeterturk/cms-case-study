@@ -26,7 +26,4 @@ public interface IContentService
 
     /// <summary>İçeriğe ait bir medya dosyasını indirir.</summary>
     Task<FileDownload> DownloadMediaAsync(Guid contentId, Guid mediaId, CancellationToken cancellationToken = default);
-
-    /// <summary>İçeriğe ait bir medya dosyasını siler (depodan + veritabanından).</summary>
-    Task DeleteMediaAsync(Guid contentId, Guid mediaId, CancellationToken cancellationToken = default);
 }

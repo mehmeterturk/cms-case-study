@@ -317,15 +317,35 @@ public class ContentAppServiceTests
     }
 
     [Fact]
-    public async Task DeleteMediaAsync_MedyaVar_DepodanVeKayittanSiler()
+    public async Task UpdateAsync_ReplaceMantigi_EskiMedyalariSilerYenisiniEkler()
     {
-        var contentId = Guid.NewGuid();
-        var media = new MediaAttachment { ContentId = contentId, StorageKey = "anahtar", FileName = "f", ContentType = "x" };
-        _mediaRepository.Setup(r => r.GetByIdAsync(media.Id, It.IsAny<CancellationToken>())).ReturnsAsync(media);
+        var existing = new MediaAttachment { StorageKey = "eski-anahtar", FileName = "eski.png", ContentType = "image/png" };
+        var content = new Content { Title = "Eski", Body = "g", UserId = Guid.NewGuid(), MediaAttachments = { existing } };
+        existing.ContentId = content.Id;
+        _repository.Setup(r => r.GetByIdAsync(content.Id, It.IsAny<CancellationToken>())).ReturnsAsync(content);
 
-        await _sut.DeleteMediaAsync(contentId, media.Id);
+        await _sut.UpdateAsync(content.Id, new UpdateContentRequest("Yeni", "yeni gövde"), OneFile());
 
-        _storage.Verify(s => s.DeleteAsync("anahtar", It.IsAny<CancellationToken>()), Times.Once);
-        _mediaRepository.Verify(r => r.DeleteAsync(media, It.IsAny<CancellationToken>()), Times.Once);
+        // Eski medya depodan + kayıttan silinir
+        _storage.Verify(s => s.DeleteAsync("eski-anahtar", It.IsAny<CancellationToken>()), Times.Once);
+        _mediaRepository.Verify(r => r.DeleteAsync(existing, It.IsAny<CancellationToken>()), Times.Once);
+        // Yeni dosya depoya yazılır + kaydedilir
+        _storage.Verify(s => s.SaveAsync(It.IsAny<string>(), It.IsAny<Stream>(), "image/png", It.IsAny<CancellationToken>()), Times.Once);
+        _mediaRepository.Verify(r => r.AddAsync(It.IsAny<MediaAttachment>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_DosyaYok_TumMedyayiTemizler()
+    {
+        var existing = new MediaAttachment { StorageKey = "k", FileName = "f", ContentType = "image/png" };
+        var content = new Content { Title = "Eski", Body = "g", UserId = Guid.NewGuid(), MediaAttachments = { existing } };
+        existing.ContentId = content.Id;
+        _repository.Setup(r => r.GetByIdAsync(content.Id, It.IsAny<CancellationToken>())).ReturnsAsync(content);
+
+        await _sut.UpdateAsync(content.Id, new UpdateContentRequest("Yeni", "g2"), NoFiles);
+
+        // Dosya gönderilmedi -> mevcut medya tamamen silinir, yeni eklenmez
+        _storage.Verify(s => s.DeleteAsync("k", It.IsAny<CancellationToken>()), Times.Once);
+        _mediaRepository.Verify(r => r.AddAsync(It.IsAny<MediaAttachment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

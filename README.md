@@ -115,12 +115,15 @@ bir `ContentsController` altında toplanmıştır.
 | GET | `/contents/{id}` | Belirli içeriği **medyalarıyla** getir |
 | GET | `/contents/by-slug/{slug}` | Slug'a göre içeriği **medyalarıyla** getir |
 | POST | `/contents` | İçerik oluştur — **`multipart/form-data`**: `title`, `body`, `userId`, (ops.) `slug`, (ops.) `files` (çoklu, ≤25 MB). Kullanıcı doğrulanır, taslak başlar |
-| PUT | `/contents/{id}` | İçeriği güncelle — **`multipart/form-data`**: `title`, `body`, (ops.) `files` (mevcut medyalar korunur, yenileri eklenir) |
+| PUT | `/contents/{id}` | İçeriği güncelle (**replace**) — **`multipart/form-data`**: `title`, `body`, (ops.) `files`. Gönderilen alanlar kaydı değiştirir; medya seti `files` ile **değiştirilir** (dosya gönderilmezse medya **tamamen kaldırılır**) |
 | POST | `/contents/{id}/publish` | İçeriği yayına al (zaten yayındaysa 409) |
 | POST | `/contents/{id}/archive` | İçeriği arşivle (zaten arşivliyse 409) |
 | DELETE | `/contents/{id}` | İçeriği sil (ekli medya dosyaları da temizlenir) |
 | GET | `/contents/{id}/media/{mediaId}/download` | Bir medya dosyasını indir |
-| DELETE | `/contents/{id}/media/{mediaId}` | Bir medya dosyasını sil (depodan + veritabanından) |
+
+> **PUT replace semantiği:** Güncellemede medya yönetimi tamamen `files` üzerinden yapılır
+> (ayrı bir medya-silme endpoint'i yoktur). Yeni medya seti = gönderilen dosyalar; hiç dosya
+> gönderilmezse içeriğin medyası temizlenir. Dosyalara erişim `.../download` ile sağlanır.
 
 ### Medya depolama soyutlaması (değiştirilebilir sağlayıcı)
 
