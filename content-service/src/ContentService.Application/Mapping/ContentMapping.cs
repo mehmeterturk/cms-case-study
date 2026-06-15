@@ -11,6 +11,8 @@ internal static class ContentMapping
             content.Title,
             content.Body,
             content.Slug,
+            content.Language,
+            content.TranslationGroupId,
             content.UserId,
             content.Status.ToString(),
             content.PublishedAt,

@@ -6,6 +6,8 @@ public record ContentDto(
     string Title,
     string Body,
     string Slug,
+    string Language,
+    Guid TranslationGroupId,
     Guid UserId,
     string Status,
     DateTime? PublishedAt,

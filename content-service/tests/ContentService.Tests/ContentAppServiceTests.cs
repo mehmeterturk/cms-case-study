@@ -41,7 +41,7 @@ public class ContentAppServiceTests
     public async Task CreateAsync_KullaniciVar_IcerikOlusturur()
     {
         var userId = Guid.NewGuid();
-        var request = new CreateContentRequest("Başlık", "Gövde metni", userId);
+        var request = new CreateContentRequest("Başlık", "Gövde metni", userId, "tr");
         _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
@@ -59,7 +59,7 @@ public class ContentAppServiceTests
     public async Task CreateAsync_SlugCakisirsa_SonekEkleyerekTekillestirir()
     {
         var userId = Guid.NewGuid();
-        var request = new CreateContentRequest("Merhaba Dünya", "Gövde", userId);
+        var request = new CreateContentRequest("Merhaba Dünya", "Gövde", userId, "tr");
         _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         // "merhaba-dunya" zaten var, "merhaba-dunya-2" boş.
         _repository.Setup(r => r.ExistsBySlugAsync("merhaba-dunya", It.IsAny<CancellationToken>())).ReturnsAsync(true);
@@ -74,7 +74,7 @@ public class ContentAppServiceTests
     public async Task CreateAsync_KullaniciYok_ValidationExceptionFirlatirVeKaydetmez()
     {
         var userId = Guid.NewGuid();
-        var request = new CreateContentRequest("Başlık", "Gövde metni", userId);
+        var request = new CreateContentRequest("Başlık", "Gövde metni", userId, "tr");
         _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
@@ -86,7 +86,7 @@ public class ContentAppServiceTests
     public async Task CreateAsync_UserServiceErisilemez_UpstreamExceptionYayilir()
     {
         var userId = Guid.NewGuid();
-        var request = new CreateContentRequest("Başlık", "Gövde metni", userId);
+        var request = new CreateContentRequest("Başlık", "Gövde metni", userId, "tr");
         _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new UpstreamServiceException("User Service erişilemiyor."));
 
@@ -99,7 +99,7 @@ public class ContentAppServiceTests
     [InlineData("başlık", "")]
     public async Task CreateAsync_GecersizGirdi_ValidationExceptionVeUserServiceCagrilmaz(string title, string body)
     {
-        var request = new CreateContentRequest(title, body, Guid.NewGuid());
+        var request = new CreateContentRequest(title, body, Guid.NewGuid(), "tr");
 
         await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateAsync(request, NoFiles));
         _userClient.Verify(c => c.UserExistsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -108,7 +108,7 @@ public class ContentAppServiceTests
     [Fact]
     public async Task CreateAsync_BosUserId_ValidationExceptionFirlatir()
     {
-        var request = new CreateContentRequest("Başlık", "Gövde", Guid.Empty);
+        var request = new CreateContentRequest("Başlık", "Gövde", Guid.Empty, "tr");
 
         await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateAsync(request, NoFiles));
         _userClient.Verify(c => c.UserExistsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -144,7 +144,7 @@ public class ContentAppServiceTests
             new() { Title = "A", Body = "x", UserId = Guid.NewGuid() },
             new() { Title = "B", Body = "y", UserId = Guid.NewGuid() }
         };
-        _repository.Setup(r => r.GetAllAsync(It.IsAny<ContentStatus?>(), It.IsAny<CancellationToken>())).ReturnsAsync(items);
+        _repository.Setup(r => r.GetAllAsync(It.IsAny<ContentStatus?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(items);
 
         var result = await _sut.GetAllAsync();
 
@@ -260,12 +260,84 @@ public class ContentAppServiceTests
     [Fact]
     public async Task GetAllAsync_StatusFiltresi_RepositoryeIletilir()
     {
-        _repository.Setup(r => r.GetAllAsync(ContentStatus.Published, It.IsAny<CancellationToken>()))
+        _repository.Setup(r => r.GetAllAsync(ContentStatus.Published, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Content>());
 
         await _sut.GetAllAsync(ContentStatus.Published);
 
-        _repository.Verify(r => r.GetAllAsync(ContentStatus.Published, It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.GetAllAsync(ContentStatus.Published, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // --- Çoklu dil (localization) ---
+
+    [Fact]
+    public async Task CreateAsync_GrupVerilmezse_YeniCeviriGrubuBaslatir()
+    {
+        var userId = Guid.NewGuid();
+        var request = new CreateContentRequest("Başlık", "Gövde", userId, "tr");
+        _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var result = await _sut.CreateAsync(request, NoFiles);
+
+        Assert.Equal("tr", result.Language);
+        Assert.NotEqual(Guid.Empty, result.TranslationGroupId);
+    }
+
+    [Fact]
+    public async Task CreateAsync_OlmayanCeviriGrubu_ValidationExceptionFirlatir()
+    {
+        var userId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var request = new CreateContentRequest("Başlık", "Gövde", userId, "en", groupId);
+        _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _repository.Setup(r => r.TranslationGroupExistsAsync(groupId, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateAsync(request, NoFiles));
+        _repository.Verify(r => r.AddAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateAsync_AyniGruptaAyniDilVarsa_ValidationExceptionFirlatir()
+    {
+        var userId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var request = new CreateContentRequest("Başlık", "Gövde", userId, "tr", groupId);
+        _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _repository.Setup(r => r.TranslationGroupExistsAsync(groupId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _repository.Setup(r => r.ExistsInGroupWithLanguageAsync(groupId, "tr", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateAsync(request, NoFiles));
+        _repository.Verify(r => r.AddAsync(It.IsAny<Content>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("TR")]      // büyük harf
+    [InlineData("tur")]     // 3 harf
+    [InlineData("")]        // boş
+    public async Task CreateAsync_GecersizDil_ValidationExceptionFirlatir(string language)
+    {
+        var request = new CreateContentRequest("Başlık", "Gövde", Guid.NewGuid(), language);
+
+        await Assert.ThrowsAsync<ValidationException>(() => _sut.CreateAsync(request, NoFiles));
+    }
+
+    [Fact]
+    public async Task GetTranslationsAsync_AyniGruptakiTumVersiyonlariDoner()
+    {
+        var content = new Content { Title = "TR", Body = "g", UserId = Guid.NewGuid(), Language = "tr", TranslationGroupId = Guid.NewGuid() };
+        _repository.Setup(r => r.GetByIdAsync(content.Id, It.IsAny<CancellationToken>())).ReturnsAsync(content);
+        _repository.Setup(r => r.GetByTranslationGroupAsync(content.TranslationGroupId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Content>
+            {
+                content,
+                new() { Title = "EN", Body = "b", UserId = content.UserId, Language = "en", TranslationGroupId = content.TranslationGroupId }
+            });
+
+        var result = await _sut.GetTranslationsAsync(content.Id);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, c => c.Language == "tr");
+        Assert.Contains(result, c => c.Language == "en");
     }
 
     // --- Medya (içerik operasyonlarına katlanmış) ---
@@ -277,7 +349,7 @@ public class ContentAppServiceTests
     public async Task CreateAsync_DosyaIle_MedyaEklerVeYanittaDoner()
     {
         var userId = Guid.NewGuid();
-        var request = new CreateContentRequest("Başlık", "Gövde", userId);
+        var request = new CreateContentRequest("Başlık", "Gövde", userId, "tr");
         _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         // Yanıt, medya listesini DB'den otoritatif olarak yeniden okur.
         _mediaRepository.Setup(r => r.GetByContentIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -295,7 +367,7 @@ public class ContentAppServiceTests
     public async Task CreateAsync_BosDosya_ValidationExceptionFirlatir()
     {
         var userId = Guid.NewGuid();
-        var request = new CreateContentRequest("Başlık", "Gövde", userId);
+        var request = new CreateContentRequest("Başlık", "Gövde", userId, "tr");
         _userClient.Setup(c => c.UserExistsAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         var emptyFile = new System.Collections.Generic.List<FileUpload>
         {

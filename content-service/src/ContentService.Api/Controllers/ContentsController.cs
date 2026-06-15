@@ -18,11 +18,18 @@ public class ContentsController : ControllerBase
         _service = service;
     }
 
-    /// <summary>İçerikleri (ekli medyalarıyla) listeler. Opsiyonel: ?status=Published.</summary>
+    /// <summary>İçerikleri (ekli medyalarıyla) listeler. Opsiyonel: ?status=Published&amp;language=tr.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ContentDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<ContentDto>>> GetAll([FromQuery] ContentStatus? status, CancellationToken cancellationToken)
-        => Ok(await _service.GetAllAsync(status, cancellationToken));
+    public async Task<ActionResult<IReadOnlyList<ContentDto>>> GetAll([FromQuery] ContentStatus? status, [FromQuery] string? language, CancellationToken cancellationToken)
+        => Ok(await _service.GetAllAsync(status, language, cancellationToken));
+
+    /// <summary>Bir içeriğin tüm dil versiyonlarını (aynı çeviri grubu) getirir.</summary>
+    [HttpGet("{id:guid}/translations")]
+    [ProducesResponseType(typeof(IReadOnlyList<ContentDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<ContentDto>>> GetTranslations(Guid id, CancellationToken cancellationToken)
+        => Ok(await _service.GetTranslationsAsync(id, cancellationToken));
 
     /// <summary>Belirli bir içeriği ekli medyalarıyla getirir.</summary>
     [HttpGet("{id:guid}")]
@@ -52,11 +59,13 @@ public class ContentsController : ControllerBase
         [FromForm] string title,
         [FromForm] string body,
         [FromForm] Guid userId,
+        [FromForm] string language,
+        [FromForm] Guid? translationGroupId,
         [FromForm] string? slug,
         [FromForm] List<IFormFile>? files,
         CancellationToken cancellationToken)
     {
-        var request = new CreateContentRequest(title, body, userId, slug);
+        var request = new CreateContentRequest(title, body, userId, language, translationGroupId, slug);
         var uploads = ToUploads(files);
         var created = await _service.CreateAsync(request, uploads, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);

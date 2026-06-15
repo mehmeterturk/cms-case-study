@@ -25,6 +25,15 @@ public class ContentConfiguration : IEntityTypeConfiguration<Content>
 
         builder.HasIndex(c => c.Slug).IsUnique();
 
+        builder.Property(c => c.Language)
+            .IsRequired()
+            .HasMaxLength(5);
+
+        builder.Property(c => c.TranslationGroupId).IsRequired();
+
+        // Aynı çeviri grubunda aynı dil iki kez olamaz.
+        builder.HasIndex(c => new { c.TranslationGroupId, c.Language }).IsUnique();
+
         builder.Property(c => c.UserId)
             .IsRequired();
 

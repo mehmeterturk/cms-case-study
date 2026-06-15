@@ -16,5 +16,9 @@ public class CreateContentRequestValidator : AbstractValidator<CreateContentRequ
 
         RuleFor(x => x.UserId)
             .NotEmpty().WithMessage("Kullanıcı kimliği (UserId) zorunludur.");
+
+        RuleFor(x => x.Language)
+            .NotEmpty().WithMessage("Dil (language) zorunludur.")
+            .Matches("^[a-z]{2}$").WithMessage("Dil ISO 639-1 formatında iki küçük harf olmalıdır (ör. tr, en).");
     }
 }

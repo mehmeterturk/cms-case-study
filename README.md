@@ -111,10 +111,11 @@ bir `ContentsController` altında toplanmıştır.
 
 | Metot | Yol | Açıklama |
 |-------|-----|----------|
-| GET | `/contents` | İçerikleri **medyalarıyla** listele (opsiyonel `?status=Draft\|Published\|Archived`) |
+| GET | `/contents` | İçerikleri **medyalarıyla** listele (opsiyonel `?status=Draft\|Published\|Archived`, `?language=tr`) |
 | GET | `/contents/{id}` | Belirli içeriği **medyalarıyla** getir |
+| GET | `/contents/{id}/translations` | İçeriğin tüm dil versiyonlarını (aynı çeviri grubu) getir |
 | GET | `/contents/by-slug/{slug}` | Slug'a göre içeriği **medyalarıyla** getir |
-| POST | `/contents` | İçerik oluştur — **`multipart/form-data`**: `title`, `body`, `userId`, (ops.) `slug`, (ops.) `files` (çoklu, ≤25 MB). Kullanıcı doğrulanır, taslak başlar |
+| POST | `/contents` | İçerik oluştur — **`multipart/form-data`**: `title`, `body`, `userId`, `language` (ISO 639-1, ör. `tr`), (ops.) `translationGroupId`, (ops.) `slug`, (ops.) `files` (çoklu, ≤25 MB). Kullanıcı doğrulanır, taslak başlar |
 | PUT | `/contents/{id}` | İçeriği güncelle (**replace**) — **`multipart/form-data`**: `title`, `body`, (ops.) `files`. Gönderilen alanlar kaydı değiştirir; medya seti `files` ile **değiştirilir** (dosya gönderilmezse medya **tamamen kaldırılır**) |
 | POST | `/contents/{id}/publish` | İçeriği yayına al (zaten yayındaysa 409) |
 | POST | `/contents/{id}/archive` | İçeriği arşivle (zaten arşivliyse 409) |
@@ -124,6 +125,29 @@ bir `ContentsController` altında toplanmıştır.
 > **PUT replace semantiği:** Güncellemede medya yönetimi tamamen `files` üzerinden yapılır
 > (ayrı bir medya-silme endpoint'i yoktur). Yeni medya seti = gönderilen dosyalar; hiç dosya
 > gönderilmezse içeriğin medyası temizlenir. Dosyalara erişim `.../download` ile sağlanır.
+
+### Çoklu dil (localization)
+
+İçerik çok dillidir ve bu, **ayrı bir servis/controller olmadan** Content Service içinde
+modellenmiştir (dil, içeriğin bir özelliğidir; bağımsız bir bounded context değildir).
+
+- Her içerik bir `language` (ISO 639-1, ör. `tr`/`en`) değerine sahiptir.
+- Aynı makalenin farklı dil versiyonları bir `translationGroupId` ile birbirine bağlanır.
+  İlk versiyon yeni bir grup başlatır; çeviriler oluşturulurken bu grup kimliği verilir.
+- **Kural**: Aynı çeviri grubunda bir dil yalnızca bir kez bulunabilir (unique index:
+  `translationGroupId + language`). Olmayan bir gruba ekleme veya tekrar dil → 400.
+- Her dil versiyonu **bağımsızdır**: kendi slug'ı, durumu (taslak/yayın) ve medyası olabilir.
+- `GET /contents?language=tr` ile dile göre filtrelenir; `GET /contents/{id}/translations`
+  ile bir içeriğin tüm dil versiyonları getirilir.
+
+```bash
+# TR versiyon (yeni grup başlatır)
+curl -X POST .../contents -F "title=Merhaba Dünya" -F "body=..." -F "userId=$UID" -F "language=tr"
+# -> translationGroupId: G1 döner
+
+# Aynı makalenin EN versiyonu (G1 grubuna eklenir)
+curl -X POST .../contents -F "title=Hello World" -F "body=..." -F "userId=$UID" -F "language=en" -F "translationGroupId=G1"
+```
 
 ### Medya depolama soyutlaması (değiştirilebilir sağlayıcı)
 

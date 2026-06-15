@@ -6,9 +6,12 @@ namespace ContentService.Application.Interfaces;
 
 public interface IContentService
 {
-    Task<IReadOnlyList<ContentDto>> GetAllAsync(ContentStatus? status = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ContentDto>> GetAllAsync(ContentStatus? status = null, string? language = null, CancellationToken cancellationToken = default);
 
     Task<ContentDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Bir içeriğin tüm dil versiyonlarını (aynı çeviri grubu) getirir.</summary>
+    Task<IReadOnlyList<ContentDto>> GetTranslationsAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<ContentDto> GetBySlugAsync(string slug, CancellationToken cancellationToken = default);
 

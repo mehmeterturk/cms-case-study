@@ -45,9 +45,9 @@ public class ContentAppService : IContentService
         _updateValidator = updateValidator;
     }
 
-    public async Task<IReadOnlyList<ContentDto>> GetAllAsync(ContentStatus? status = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ContentDto>> GetAllAsync(ContentStatus? status = null, string? language = null, CancellationToken cancellationToken = default)
     {
-        var contents = await _repository.GetAllAsync(status, cancellationToken);
+        var contents = await _repository.GetAllAsync(status, language, cancellationToken);
         return contents.Select(c => c.ToDto()).ToList();
     }
 
@@ -56,6 +56,15 @@ public class ContentAppService : IContentService
         var content = await _repository.GetByIdAsync(id, cancellationToken)
                       ?? throw new NotFoundException("İçerik", id);
         return content.ToDto();
+    }
+
+    public async Task<IReadOnlyList<ContentDto>> GetTranslationsAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var content = await _repository.GetByIdAsync(id, cancellationToken)
+                      ?? throw new NotFoundException("İçerik", id);
+
+        var siblings = await _repository.GetByTranslationGroupAsync(content.TranslationGroupId, cancellationToken);
+        return siblings.Select(c => c.ToDto()).ToList();
     }
 
     public async Task<ContentDto> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
@@ -78,6 +87,8 @@ public class ContentAppService : IContentService
                 $"Belirtilen kullanıcı ({request.UserId}) bulunamadı; içerik oluşturulamaz.");
         }
 
+        var translationGroupId = await ResolveTranslationGroupAsync(request, cancellationToken);
+
         var baseSlug = SlugGenerator.Generate(string.IsNullOrWhiteSpace(request.Slug) ? request.Title : request.Slug);
         var slug = await EnsureUniqueSlugAsync(baseSlug, cancellationToken);
 
@@ -86,6 +97,8 @@ public class ContentAppService : IContentService
             Title = request.Title,
             Body = request.Body,
             Slug = slug,
+            Language = request.Language,
+            TranslationGroupId = translationGroupId,
             UserId = request.UserId,
             Status = ContentStatus.Draft
         };
@@ -204,6 +217,30 @@ public class ContentAppService : IContentService
         }
 
         return media;
+    }
+
+    /// <summary>
+    /// Çeviri grubunu çözer: grup verilmezse yeni bir grup başlatır; verilirse grubun
+    /// var olduğunu ve o grupta aynı dilin henüz bulunmadığını doğrular.
+    /// </summary>
+    private async Task<Guid> ResolveTranslationGroupAsync(CreateContentRequest request, CancellationToken cancellationToken)
+    {
+        if (request.TranslationGroupId is not Guid groupId)
+        {
+            return Guid.NewGuid(); // ilk versiyon: yeni grup
+        }
+
+        if (!await _repository.TranslationGroupExistsAsync(groupId, cancellationToken))
+        {
+            throw new ValidationException($"Belirtilen çeviri grubu ({groupId}) bulunamadı.");
+        }
+
+        if (await _repository.ExistsInGroupWithLanguageAsync(groupId, request.Language, cancellationToken))
+        {
+            throw new ValidationException($"Bu çeviri grubunda '{request.Language}' dili zaten mevcut.");
+        }
+
+        return groupId;
     }
 
     /// <summary>
