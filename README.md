@@ -115,7 +115,7 @@ Veritabanı şeması, her servisin açılışında otomatik migration ile oluşt
 > ```json
 > [
 >   { "fullName": "Ada Lovelace", "email": "ada@example.com" },
->   { "fullName": "Grace Hopper",      "email": "grace@example.com" }
+>   { "fullName": "Grace Hopper", "email": "grace@example.com" }
 > ]
 > ```
 

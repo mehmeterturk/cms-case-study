@@ -59,7 +59,7 @@ public class UserAppServiceTests
     [InlineData("Ada", "")]
     [InlineData("Ada", "kullanıcı@example.com")]   // Türkçe 'ı' local kısımda
     [InlineData("Ada", "ada@gmâil.com")]           // Türkçe/aksanlı 'â' domain'de
-    [InlineData("Ada", "test@şirket.com")]          // Türkçe 'ş' domain'de
+    [InlineData("Ada", "test@şirket.com")]         // Türkçe 'ş' domain'de
     [InlineData("Ada", "ad a@example.com")]        // boşluk içeriyor
     public async Task CreateAsync_GecersizGirdi_ValidationExceptionFirlatir(string fullName, string email)
     {
