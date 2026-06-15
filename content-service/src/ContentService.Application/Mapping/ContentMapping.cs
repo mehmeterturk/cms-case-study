@@ -15,5 +15,12 @@ internal static class ContentMapping
             content.Status.ToString(),
             content.PublishedAt,
             content.CreatedAt,
-            content.UpdatedAt);
+            content.UpdatedAt,
+            content.MediaAttachments
+                .OrderByDescending(m => m.CreatedAt)
+                .Select(m => m.ToDto())
+                .ToList());
+
+    public static MediaAttachmentDto ToDto(this MediaAttachment media) =>
+        new(media.Id, media.ContentId, media.FileName, media.ContentType, media.SizeBytes, media.CreatedAt);
 }

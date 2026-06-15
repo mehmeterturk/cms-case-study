@@ -105,25 +105,22 @@ Veritabanı şeması, her servisin açılışında otomatik migration ile oluşt
 
 **Content Service** (`http://localhost:8080`)
 
+Medya, içeriğin bir parçasıdır: tüm GET yanıtları içeriğin `media` listesini içerir;
+dosyalar içerik oluşturma/güncelleme sırasında aynı istekte yüklenir. Bu yüzden tek
+bir `ContentsController` altında toplanmıştır.
+
 | Metot | Yol | Açıklama |
 |-------|-----|----------|
-| GET | `/contents` | İçerikleri listele (opsiyonel `?status=Draft\|Published\|Archived`) |
-| POST | `/contents` | Yeni içerik oluştur (kullanıcıyı doğrular, taslak olarak başlar) |
-| GET | `/contents/{id}` | Belirli içeriği getir |
-| GET | `/contents/by-slug/{slug}` | Slug'a göre içerik getir |
-| PUT | `/contents/{id}` | İçeriğin başlık/gövdesini güncelle |
+| GET | `/contents` | İçerikleri **medyalarıyla** listele (opsiyonel `?status=Draft\|Published\|Archived`) |
+| GET | `/contents/{id}` | Belirli içeriği **medyalarıyla** getir |
+| GET | `/contents/by-slug/{slug}` | Slug'a göre içeriği **medyalarıyla** getir |
+| POST | `/contents` | İçerik oluştur — **`multipart/form-data`**: `title`, `body`, `userId`, (ops.) `slug`, (ops.) `files` (çoklu, ≤25 MB). Kullanıcı doğrulanır, taslak başlar |
+| PUT | `/contents/{id}` | İçeriği güncelle — **`multipart/form-data`**: `title`, `body`, (ops.) `files` (mevcut medyalar korunur, yenileri eklenir) |
 | POST | `/contents/{id}/publish` | İçeriği yayına al (zaten yayındaysa 409) |
 | POST | `/contents/{id}/archive` | İçeriği arşivle (zaten arşivliyse 409) |
 | DELETE | `/contents/{id}` | İçeriği sil (ekli medya dosyaları da temizlenir) |
-
-**Medya (içeriğe dosya ekleme)** — `http://localhost:8080`
-
-| Metot | Yol | Açıklama |
-|-------|-----|----------|
-| GET | `/contents/{id}/media` | İçeriğe ekli medyaları listele |
-| POST | `/contents/{id}/media` | Dosya yükle (`multipart/form-data`, alan: `file`; max 25 MB) |
-| GET | `/contents/{id}/media/{mediaId}/download` | Dosyayı indir |
-| DELETE | `/contents/{id}/media/{mediaId}` | Dosyayı sil (depodan + veritabanından) |
+| GET | `/contents/{id}/media/{mediaId}/download` | Bir medya dosyasını indir |
+| DELETE | `/contents/{id}/media/{mediaId}` | Bir medya dosyasını sil (depodan + veritabanından) |
 
 ### Medya depolama soyutlaması (değiştirilebilir sağlayıcı)
 

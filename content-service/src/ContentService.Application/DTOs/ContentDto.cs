@@ -1,6 +1,6 @@
 namespace ContentService.Application.DTOs;
 
-/// <summary>API'nin dış dünyaya döndürdüğü içerik görünümü.</summary>
+/// <summary>API'nin dış dünyaya döndürdüğü içerik görünümü (ekli medyalar dahil).</summary>
 public record ContentDto(
     Guid Id,
     string Title,
@@ -10,4 +10,5 @@ public record ContentDto(
     string Status,
     DateTime? PublishedAt,
     DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    IReadOnlyList<MediaAttachmentDto> Media);

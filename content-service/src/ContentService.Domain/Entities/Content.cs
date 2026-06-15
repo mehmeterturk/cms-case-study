@@ -25,6 +25,9 @@ public class Content : BaseEntity
     /// <summary>İçeriğin ilk yayınlandığı an (henüz yayınlanmadıysa null).</summary>
     public DateTime? PublishedAt { get; set; }
 
+    /// <summary>İçeriğe ekli medya dosyaları (içerik aggregate'inin parçası).</summary>
+    public List<MediaAttachment> MediaAttachments { get; set; } = new();
+
     /// <summary>Taslak/arşiv durumundaki içeriği yayına alır.</summary>
     public void Publish()
     {

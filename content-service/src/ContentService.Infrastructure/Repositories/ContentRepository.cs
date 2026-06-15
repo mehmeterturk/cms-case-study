@@ -17,7 +17,7 @@ public class ContentRepository : IContentRepository
 
     public async Task<IReadOnlyList<Content>> GetAllAsync(ContentStatus? status = null, CancellationToken cancellationToken = default)
     {
-        var query = _context.Contents.AsNoTracking();
+        var query = _context.Contents.AsNoTracking().Include(c => c.MediaAttachments).AsQueryable();
 
         if (status is not null)
         {
@@ -28,10 +28,10 @@ public class ContentRepository : IContentRepository
     }
 
     public async Task<Content?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-        await _context.Contents.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+        await _context.Contents.Include(c => c.MediaAttachments).FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
     public async Task<Content?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default) =>
-        await _context.Contents.AsNoTracking().FirstOrDefaultAsync(c => c.Slug == slug, cancellationToken);
+        await _context.Contents.AsNoTracking().Include(c => c.MediaAttachments).FirstOrDefaultAsync(c => c.Slug == slug, cancellationToken);
 
     public async Task<bool> ExistsBySlugAsync(string slug, CancellationToken cancellationToken = default) =>
         await _context.Contents.AnyAsync(c => c.Slug == slug, cancellationToken);

@@ -29,9 +29,9 @@ public class MediaAttachmentConfiguration : IEntityTypeConfiguration<MediaAttach
         builder.HasIndex(m => m.ContentId);
 
         // İçerik silinince medya kayıtları da silinir (DB cascade); dosyalar
-        // uygulama katmanında temizlenir.
+        // uygulama katmanında temizlenir. Navigation üzerinden Include edilebilir.
         builder.HasOne<Content>()
-            .WithMany()
+            .WithMany(c => c.MediaAttachments)
             .HasForeignKey(m => m.ContentId)
             .OnDelete(DeleteBehavior.Cascade);
     }
