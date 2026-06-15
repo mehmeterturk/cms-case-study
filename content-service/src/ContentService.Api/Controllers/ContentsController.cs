@@ -1,10 +1,8 @@
-using ContentService.Application.Common;
 using ContentService.Application.DTOs;
 using ContentService.Application.Interfaces;
 using ContentService.Application.Models;
 using ContentService.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace ContentService.Api.Controllers;
 
@@ -14,24 +12,22 @@ namespace ContentService.Api.Controllers;
 public class ContentsController : ControllerBase
 {
     private readonly IContentService _service;
-    private readonly LocalizationOptions _localization;
 
-    public ContentsController(IContentService service, IOptions<LocalizationOptions> localization)
+    public ContentsController(IContentService service)
     {
         _service = service;
-        _localization = localization.Value;
     }
 
     /// <summary>İçerik oluştururken kullanılabilecek desteklenen dilleri listeler.</summary>
     [HttpGet("languages")]
     [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
     public ActionResult<IReadOnlyList<string>> GetSupportedLanguages()
-        => Ok(_localization.SupportedLanguages);
+        => Ok(Enum.GetNames<Language>());
 
     /// <summary>İçerikleri (ekli medyalarıyla) listeler. Opsiyonel: ?status=Published&amp;language=tr.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ContentDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<ContentDto>>> GetAll([FromQuery] ContentStatus? status, [FromQuery] string? language, CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<ContentDto>>> GetAll([FromQuery] ContentStatus? status, [FromQuery] Language? language, CancellationToken cancellationToken)
         => Ok(await _service.GetAllAsync(status, language, cancellationToken));
 
     /// <summary>Bir içeriğin tüm dil versiyonlarını (aynı çeviri grubu) getirir.</summary>
@@ -69,7 +65,7 @@ public class ContentsController : ControllerBase
         [FromForm] string title,
         [FromForm] string body,
         [FromForm] Guid userId,
-        [FromForm] string language,
+        [FromForm] Language language,
         [FromForm] Guid? translationGroupId,
         [FromForm] string? slug,
         [FromForm] List<IFormFile>? files,
@@ -82,8 +78,9 @@ public class ContentsController : ControllerBase
     }
 
     /// <summary>
-    /// İçeriğin başlık/gövdesini günceller ve isteğe bağlı yeni medya dosyaları ekler
-    /// (mevcut medyalar korunur). multipart/form-data: title, body, (opsiyonel) files.
+    /// İçeriği günceller (replace). Gönderilen alanlar kaydı değiştirir; medya seti
+    /// gönderilen dosyalarla değiştirilir — dosya gönderilmezse medya tamamen kaldırılır.
+    /// multipart/form-data: title, body, (opsiyonel) files.
     /// </summary>
     [HttpPut("{id:guid}")]
     [Consumes("multipart/form-data")]

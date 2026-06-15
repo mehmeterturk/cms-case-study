@@ -6,7 +6,7 @@ namespace ContentService.Application.Interfaces;
 public interface IContentRepository
 {
     /// <summary>İçerikleri (opsiyonel olarak durum ve dile göre filtreleyerek) listeler.</summary>
-    Task<IReadOnlyList<Content>> GetAllAsync(ContentStatus? status = null, string? language = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Content>> GetAllAsync(ContentStatus? status = null, Language? language = null, CancellationToken cancellationToken = default);
 
     Task<Content?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
@@ -18,7 +18,7 @@ public interface IContentRepository
     Task<bool> TranslationGroupExistsAsync(Guid translationGroupId, CancellationToken cancellationToken = default);
 
     /// <summary>Bir çeviri grubunda belirtilen dil zaten var mı?</summary>
-    Task<bool> ExistsInGroupWithLanguageAsync(Guid translationGroupId, string language, CancellationToken cancellationToken = default);
+    Task<bool> ExistsInGroupWithLanguageAsync(Guid translationGroupId, Language language, CancellationToken cancellationToken = default);
 
     /// <summary>Bir çeviri grubundaki tüm içerikleri (tüm dil versiyonları) getirir.</summary>
     Task<IReadOnlyList<Content>> GetByTranslationGroupAsync(Guid translationGroupId, CancellationToken cancellationToken = default);

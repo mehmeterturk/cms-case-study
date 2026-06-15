@@ -15,7 +15,7 @@ public class ContentRepository : IContentRepository
         _context = context;
     }
 
-    public async Task<IReadOnlyList<Content>> GetAllAsync(ContentStatus? status = null, string? language = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Content>> GetAllAsync(ContentStatus? status = null, Language? language = null, CancellationToken cancellationToken = default)
     {
         var query = _context.Contents.AsNoTracking().Include(c => c.MediaAttachments).AsQueryable();
 
@@ -24,7 +24,7 @@ public class ContentRepository : IContentRepository
             query = query.Where(c => c.Status == status);
         }
 
-        if (!string.IsNullOrWhiteSpace(language))
+        if (language is not null)
         {
             query = query.Where(c => c.Language == language);
         }
@@ -44,7 +44,7 @@ public class ContentRepository : IContentRepository
     public async Task<bool> TranslationGroupExistsAsync(Guid translationGroupId, CancellationToken cancellationToken = default) =>
         await _context.Contents.AnyAsync(c => c.TranslationGroupId == translationGroupId, cancellationToken);
 
-    public async Task<bool> ExistsInGroupWithLanguageAsync(Guid translationGroupId, string language, CancellationToken cancellationToken = default) =>
+    public async Task<bool> ExistsInGroupWithLanguageAsync(Guid translationGroupId, Language language, CancellationToken cancellationToken = default) =>
         await _context.Contents.AnyAsync(c => c.TranslationGroupId == translationGroupId && c.Language == language, cancellationToken);
 
     public async Task<IReadOnlyList<Content>> GetByTranslationGroupAsync(Guid translationGroupId, CancellationToken cancellationToken = default) =>

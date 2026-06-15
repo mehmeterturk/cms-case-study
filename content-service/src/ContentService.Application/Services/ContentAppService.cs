@@ -45,7 +45,7 @@ public class ContentAppService : IContentService
         _updateValidator = updateValidator;
     }
 
-    public async Task<IReadOnlyList<ContentDto>> GetAllAsync(ContentStatus? status = null, string? language = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ContentDto>> GetAllAsync(ContentStatus? status = null, Language? language = null, CancellationToken cancellationToken = default)
     {
         var contents = await _repository.GetAllAsync(status, language, cancellationToken);
         return contents.Select(c => c.ToDto()).ToList();
@@ -87,8 +87,7 @@ public class ContentAppService : IContentService
                 $"Belirtilen kullanıcı ({request.UserId}) bulunamadı; içerik oluşturulamaz.");
         }
 
-        var language = request.Language.Trim().ToLowerInvariant();
-        var translationGroupId = await ResolveTranslationGroupAsync(request.TranslationGroupId, language, cancellationToken);
+        var translationGroupId = await ResolveTranslationGroupAsync(request.TranslationGroupId, request.Language, cancellationToken);
 
         var baseSlug = SlugGenerator.Generate(string.IsNullOrWhiteSpace(request.Slug) ? request.Title : request.Slug);
         var slug = await EnsureUniqueSlugAsync(baseSlug, cancellationToken);
@@ -98,7 +97,7 @@ public class ContentAppService : IContentService
             Title = request.Title,
             Body = request.Body,
             Slug = slug,
-            Language = language,
+            Language = request.Language,
             TranslationGroupId = translationGroupId,
             UserId = request.UserId,
             Status = ContentStatus.Draft
@@ -224,7 +223,7 @@ public class ContentAppService : IContentService
     /// Çeviri grubunu çözer: grup verilmezse yeni bir grup başlatır; verilirse grubun
     /// var olduğunu ve o grupta aynı dilin henüz bulunmadığını doğrular.
     /// </summary>
-    private async Task<Guid> ResolveTranslationGroupAsync(Guid? translationGroupId, string language, CancellationToken cancellationToken)
+    private async Task<Guid> ResolveTranslationGroupAsync(Guid? translationGroupId, Language language, CancellationToken cancellationToken)
     {
         if (translationGroupId is not Guid groupId)
         {

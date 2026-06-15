@@ -6,7 +6,7 @@ namespace ContentService.Application.Interfaces;
 
 public interface IContentService
 {
-    Task<IReadOnlyList<ContentDto>> GetAllAsync(ContentStatus? status = null, string? language = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ContentDto>> GetAllAsync(ContentStatus? status = null, Language? language = null, CancellationToken cancellationToken = default);
 
     Task<ContentDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 

@@ -115,6 +115,12 @@ public class UserAppService : IUserService
         var user = await _repository.GetByIdAsync(id, cancellationToken)
                    ?? throw new NotFoundException("Kullanıcı", id);
 
+        // E-posta değişiyorsa, başka bir kullanıcıda kullanımda olmadığını doğrula.
+        if (request.Email != user.Email && await _repository.ExistsByEmailAsync(request.Email, cancellationToken))
+        {
+            throw new ValidationException($"'{request.Email}' e-postası zaten kullanımda.");
+        }
+
         user.FullName = request.FullName;
         user.Email = request.Email;
         user.UpdatedAt = DateTime.UtcNow;

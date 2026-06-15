@@ -25,9 +25,11 @@ public class ContentConfiguration : IEntityTypeConfiguration<Content>
 
         builder.HasIndex(c => c.Slug).IsUnique();
 
+        // Enum'u okunabilirlik için metin olarak sakla.
         builder.Property(c => c.Language)
             .IsRequired()
-            .HasMaxLength(5);
+            .HasMaxLength(10)
+            .HasConversion<string>();
 
         builder.Property(c => c.TranslationGroupId).IsRequired();
 

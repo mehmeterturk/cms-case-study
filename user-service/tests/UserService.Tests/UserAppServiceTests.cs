@@ -130,6 +130,36 @@ public class UserAppServiceTests
         Assert.Equal("Yeni Ad", result.FullName);
         Assert.Equal("yeni@example.com", result.Email);
         Assert.NotNull(result.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_YeniEpostaBaskasindaVar_ValidationExceptionFirlatir()
+    {
+        var user = new User { FullName = "Eski", Email = "eski@example.com" };
+        _repository.Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        _repository.Setup(r => r.ExistsByEmailAsync("alinmis@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var request = new UpdateUserRequest("Yeni Ad", "alinmis@example.com");
+
+        await Assert.ThrowsAsync<ValidationException>(() => _sut.UpdateAsync(user.Id, request));
+        _repository.Verify(r => r.UpdateAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_EpostaAyniKalir_TekillikKontroluAtlanir()
+    {
+        var user = new User { FullName = "Eski", Email = "ayni@example.com" };
+        _repository.Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        // Aynı e-posta ile güncelleme: ExistsByEmailAsync çağrılmamalı, başarılı olmalı.
+        var request = new UpdateUserRequest("Yeni Ad", "ayni@example.com");
+        var result = await _sut.UpdateAsync(user.Id, request);
+
+        Assert.Equal("Yeni Ad", result.FullName);
+        _repository.Verify(r => r.ExistsByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _repository.Verify(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()), Times.Once);
     }
 

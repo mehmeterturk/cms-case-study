@@ -132,10 +132,11 @@ bir `ContentsController` altında toplanmıştır.
 İçerik çok dillidir ve bu, **ayrı bir servis/controller olmadan** Content Service içinde
 modellenmiştir (dil, içeriğin bir özelliğidir; bağımsız bir bounded context değildir).
 
-- Her içerik bir `language` (ISO 639-1, ör. `tr`/`en`) değerine sahiptir.
-- **Desteklenen diller yapılandırmadan gelir** (`appsettings` → `Localization:SupportedLanguages`).
-  Listede olmayan bir dil kodu reddedilir (400). Büyük/küçük harf normalize edilir (`TR` → `tr`).
-  Desteklenen diller `GET /contents/languages` ile alınabilir.
+- Dil bir **enum**'dur (`Language`: `Tr`, `En`); böylece Swagger'da ve istemcide
+  serbest metin yerine **seçilebilir bir liste** (dropdown) olarak sunulur.
+  Geçersiz bir değer model binding aşamasında reddedilir (400); büyük/küçük harf duyarsızdır.
+  Desteklenen diller `GET /contents/languages` ile alınabilir (`["Tr","En"]`).
+- Yeni dil eklemek = enum'a değer eklemek (tek nokta).
 - Aynı makalenin farklı dil versiyonları bir `translationGroupId` ile birbirine bağlanır.
   İlk versiyon yeni bir grup başlatır; çeviriler oluşturulurken bu grup kimliği verilir.
 - **Kural**: Aynı çeviri grubunda bir dil yalnızca bir kez bulunabilir (unique index:

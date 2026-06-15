@@ -17,8 +17,8 @@ public class Content : BaseEntity
     /// <summary>URL dostu, tekil tanımlayıcı. Oluşturulurken üretilir, sonradan değişmez.</summary>
     public string Slug { get; set; } = string.Empty;
 
-    /// <summary>İçeriğin dili (ISO 639-1, ör. "tr", "en"). Oluşturulurken belirlenir.</summary>
-    public string Language { get; set; } = string.Empty;
+    /// <summary>İçeriğin dili. Oluşturulurken belirlenir.</summary>
+    public Language Language { get; set; }
 
     /// <summary>
     /// Aynı içeriğin farklı dil versiyonlarını birbirine bağlayan kimlik.

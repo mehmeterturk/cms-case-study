@@ -1,3 +1,5 @@
+using ContentService.Domain.Enums;
+
 namespace ContentService.Application.DTOs;
 
 /// <summary>
@@ -10,6 +12,6 @@ public record CreateContentRequest(
     string Title,
     string Body,
     Guid UserId,
-    string Language,
+    Language Language,
     Guid? TranslationGroupId = null,
     string? Slug = null);
