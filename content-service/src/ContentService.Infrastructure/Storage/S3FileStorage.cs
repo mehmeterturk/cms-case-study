@@ -22,8 +22,6 @@ public class S3FileStorage : IFileStorage
         _logger = logger;
     }
 
-    public string ProviderName => "S3";
-
     public async Task SaveAsync(string storageKey, Stream content, string contentType, CancellationToken cancellationToken = default)
     {
         var request = new PutObjectRequest

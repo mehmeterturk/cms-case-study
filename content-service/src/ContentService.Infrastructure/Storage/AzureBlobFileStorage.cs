@@ -20,8 +20,6 @@ public class AzureBlobFileStorage : IFileStorage
         _logger = logger;
     }
 
-    public string ProviderName => "AzureBlob";
-
     public async Task SaveAsync(string storageKey, Stream content, string contentType, CancellationToken cancellationToken = default)
     {
         var blob = _container.GetBlobClient(storageKey);

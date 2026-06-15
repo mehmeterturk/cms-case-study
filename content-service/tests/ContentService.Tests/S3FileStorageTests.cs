@@ -20,12 +20,6 @@ public class S3FileStorageTests
     }
 
     [Fact]
-    public void ProviderName_S3Doner()
-    {
-        Assert.Equal("S3", _sut.ProviderName);
-    }
-
-    [Fact]
     public async Task SaveAsync_DogruBucketVeAnahtarlaPutObjectCagirir()
     {
         _s3.Setup(s => s.PutObjectAsync(It.IsAny<PutObjectRequest>(), It.IsAny<CancellationToken>()))

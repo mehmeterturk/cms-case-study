@@ -20,8 +20,6 @@ public class LocalFileStorage : IFileStorage
         Directory.CreateDirectory(_rootPath);
     }
 
-    public string ProviderName => "Local";
-
     public async Task SaveAsync(string storageKey, Stream content, string contentType, CancellationToken cancellationToken = default)
     {
         var path = ResolvePath(storageKey);

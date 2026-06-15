@@ -8,9 +8,6 @@ namespace ContentService.Application.Interfaces;
 /// </summary>
 public interface IFileStorage
 {
-    /// <summary>Aktif sağlayıcının adı (teşhis/loglama için): Local, S3, AzureBlob.</summary>
-    string ProviderName { get; }
-
     /// <summary>Veriyi verilen anahtarla depolar.</summary>
     Task SaveAsync(string storageKey, Stream content, string contentType, CancellationToken cancellationToken = default);
 
