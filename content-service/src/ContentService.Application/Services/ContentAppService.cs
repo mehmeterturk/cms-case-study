@@ -18,17 +18,23 @@ public class ContentAppService : IContentService
 {
     private readonly IContentRepository _repository;
     private readonly IUserValidationClient _userClient;
+    private readonly IMediaAttachmentRepository _mediaRepository;
+    private readonly IFileStorage _storage;
     private readonly IValidator<CreateContentRequest> _createValidator;
     private readonly IValidator<UpdateContentRequest> _updateValidator;
 
     public ContentAppService(
         IContentRepository repository,
         IUserValidationClient userClient,
+        IMediaAttachmentRepository mediaRepository,
+        IFileStorage storage,
         IValidator<CreateContentRequest> createValidator,
         IValidator<UpdateContentRequest> updateValidator)
     {
         _repository = repository;
         _userClient = userClient;
+        _mediaRepository = mediaRepository;
+        _storage = storage;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
@@ -120,6 +126,13 @@ public class ContentAppService : IContentService
     {
         var content = await _repository.GetByIdAsync(id, cancellationToken)
                       ?? throw new NotFoundException("İçerik", id);
+
+        // İçeriğe ait medya dosyalarını depodan temizle (DB kayıtları cascade ile silinir).
+        var media = await _mediaRepository.GetByContentIdAsync(id, cancellationToken);
+        foreach (var item in media)
+        {
+            await _storage.DeleteAsync(item.StorageKey, cancellationToken);
+        }
 
         await _repository.DeleteAsync(content, cancellationToken);
     }

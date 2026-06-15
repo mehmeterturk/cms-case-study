@@ -14,6 +14,7 @@ Bir içerik yönetim sistemi (CMS) için iki bağımsız mikroservisten oluşan 
 | Mimari | Servis başına Clean Architecture (Domain / Application / Infrastructure / Api) |
 | Veritabanı | PostgreSQL (her servis için ayrı veritabanı), EF Core + Npgsql, code-first migration |
 | Servisler arası iletişim | RESTful (HttpClient) + dayanıklılık: retry / timeout / circuit breaker (`Microsoft.Extensions.Http.Resilience`, Polly v8 tabanlı) |
+| Medya depolama | Değiştirilebilir sağlayıcı (port/adapter): Yerel disk (varsayılan), Amazon S3 (`AWSSDK.S3`), Azure Blob (`Azure.Storage.Blobs`) |
 | Doğrulama | FluentValidation |
 | API dokümantasyonu | Swagger / OpenAPI (Swashbuckle) |
 | Testler | xUnit + Moq |
@@ -101,7 +102,46 @@ Veritabanı şeması, her servisin açılışında otomatik migration ile oluşt
 | PUT | `/contents/{id}` | İçeriğin başlık/gövdesini güncelle |
 | POST | `/contents/{id}/publish` | İçeriği yayına al (zaten yayındaysa 409) |
 | POST | `/contents/{id}/archive` | İçeriği arşivle (zaten arşivliyse 409) |
-| DELETE | `/contents/{id}` | İçeriği sil |
+| DELETE | `/contents/{id}` | İçeriği sil (ekli medya dosyaları da temizlenir) |
+
+**Medya (içeriğe dosya ekleme)** — `http://localhost:8080`
+
+| Metot | Yol | Açıklama |
+|-------|-----|----------|
+| GET | `/contents/{id}/media` | İçeriğe ekli medyaları listele |
+| POST | `/contents/{id}/media` | Dosya yükle (`multipart/form-data`, alan: `file`; max 25 MB) |
+| GET | `/contents/{id}/media/{mediaId}/download` | Dosyayı indir |
+| DELETE | `/contents/{id}/media/{mediaId}` | Dosyayı sil (depodan + veritabanından) |
+
+### Medya depolama soyutlaması (değiştirilebilir sağlayıcı)
+
+Dosyaların fiziksel olarak nereye yazılacağı, Application katmanındaki tek bir port
+(arayüz) ile soyutlanmıştır — bir "soket". Infrastructure katmanında bu sokete farklı
+sağlayıcılar takılır; hangisinin kullanılacağı **yapılandırma ile** seçilir
+(Dependency Inversion / Strategy deseni). Kod değişmeden depolama değişir.
+
+```
+Application:    IFileStorage (port / soket)
+                      ▲
+        ┌─────────────┼─────────────┐
+Infrastructure:  LocalFileStorage  S3FileStorage  AzureBlobFileStorage
+   (disk/volume)      (AWS S3)        (Azure Blob)
+```
+
+Sağlayıcı seçimi (`appsettings.json` veya ortam değişkeni):
+
+```jsonc
+"Storage": {
+  "Provider": "Local",                 // Local | S3 | AzureBlob
+  "Local":     { "RootPath": "/app/media" },
+  "S3":        { "BucketName": "...", "Region": "eu-central-1" },
+  "AzureBlob": { "ConnectionString": "...", "ContainerName": "..." }
+}
+```
+
+Bu vaka **Local** sağlayıcı ile (Docker volume `content-media`) çalışır; bulut hesabı
+gerektirmez. S3 veya Azure'a geçmek için yalnızca `Storage:Provider` ve ilgili ayarları
+değiştirmek yeterlidir — DI yalnızca seçilen sağlayıcıyı örnekler.
 
 ### İçerik modeli ve yayın yaşam döngüsü
 

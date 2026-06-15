@@ -2,6 +2,7 @@ using ContentService.Application.Interfaces;
 using ContentService.Infrastructure.ExternalServices;
 using ContentService.Infrastructure.Persistence;
 using ContentService.Infrastructure.Repositories;
+using ContentService.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,10 @@ public static class DependencyInjection
                 npgsql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null)));
 
         services.AddScoped<IContentRepository, ContentRepository>();
+        services.AddScoped<IMediaAttachmentRepository, MediaAttachmentRepository>();
+
+        // Medya depolama soketi: yapılandırmaya göre Local / S3 / AzureBlob.
+        services.AddFileStorage(configuration);
 
         var userServiceBaseUrl = configuration["Services:UserService:BaseUrl"]
             ?? throw new InvalidOperationException("'Services:UserService:BaseUrl' yapılandırması bulunamadı.");

@@ -11,6 +11,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Content> Contents => Set<Content>();
 
+    public DbSet<MediaAttachment> MediaAttachments => Set<MediaAttachment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

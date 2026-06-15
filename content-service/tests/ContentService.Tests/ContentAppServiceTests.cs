@@ -16,13 +16,21 @@ public class ContentAppServiceTests
 {
     private readonly Mock<IContentRepository> _repository = new();
     private readonly Mock<IUserValidationClient> _userClient = new();
+    private readonly Mock<IMediaAttachmentRepository> _mediaRepository = new();
+    private readonly Mock<IFileStorage> _storage = new();
     private readonly ContentAppService _sut;
 
     public ContentAppServiceTests()
     {
+        // Varsayılan: içeriğin medyası yok (silme akışı için).
+        _mediaRepository.Setup(r => r.GetByContentIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<MediaAttachment>());
+
         _sut = new ContentAppService(
             _repository.Object,
             _userClient.Object,
+            _mediaRepository.Object,
+            _storage.Object,
             new CreateContentRequestValidator(),
             new UpdateContentRequestValidator());
     }

@@ -56,8 +56,13 @@ services:
     environment:
       ConnectionStrings__Default: "Host=contentdb;Port=5432;Database=contentdb;Username=postgres;Password=postgres"
       Services__UserService__BaseUrl: "http://user-service:8080/"
+      # Medya depolama soketi: Local (varsayılan). S3/AzureBlob için Provider + ilgili ayarları geçin.
+      Storage__Provider: "Local"
+      Storage__Local__RootPath: "/app/media"
     ports:
       - "8080:8080"
+    volumes:
+      - content-media:/app/media
     depends_on:
       contentdb:
         condition: service_healthy
@@ -69,6 +74,7 @@ services:
 volumes:
   userdb-data:
   contentdb-data:
+  content-media:
 
 networks:
   cms-net:
